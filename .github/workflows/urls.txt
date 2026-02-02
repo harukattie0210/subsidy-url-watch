@@ -1,0 +1,11 @@
+# 監視URL（行を追加/削除すれば増減できる）
+https://www.chusho.meti.go.jp/koukai/yosan/index.html
+https://www.chusho.meti.go.jp/pamflet/support.html
+https://portal.monodukuri-hojo.jp/index.html
+https://shinjigyou-shinshutsu.smrj.go.jp/
+https://shoryokuka.smrj.go.jp/ippan/
+https://seichotoushi-hojo.jp/
+https://growth-100-oku.smrj.go.jp/
+https://www.tokyo-kosha.or.jp/support/josei/setsubijosei/yakushin.html
+https://www.tokyo-kst.jp/
+https://smbiz.asahi.com/category/case/
