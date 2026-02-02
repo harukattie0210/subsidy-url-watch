@@ -80,7 +80,8 @@ def send_email(subject, body):
     msg["To"] = os.environ["MAIL_TO"]
     msg["Date"] = formatdate(localtime=True)
 
-    with smtplib.SMTP(os.environ["SMTP_HOST"], int(os.environ.get("SMTP_PORT", 587))) as s:
+    with smtplib.SMTP(os.environ["SMTP_HOST"], int(os.environ.get("SMTP_PORT") or "587")) as s:
+
         s.starttls()
         s.login(os.environ["SMTP_USER"], os.environ["SMTP_PASS"])
         s.send_message(msg)
