@@ -1,0 +1,41 @@
+name: Daily URL Watch
+
+on:
+  schedule:
+    # 毎日 09:00 JST
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt
+
+      - run: python check_urls.py
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+
+      - name: Commit state
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git config user.name "url-watch-bot"
+            git config user.email "url-watch-bot@users.noreply.github.com"
+            git add state.json state_text/
+            git commit -m "Update state"
+            git push
+          fi
