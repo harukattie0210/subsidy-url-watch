@@ -13,27 +13,32 @@ from bs4 import BeautifulSoup
 
 URLS_FILE = Path("urls.txt")
 STATE_FILE = Path("state.json")
-STATE_TEXT_DIR = Path("state_text")
+STATE_TEXT_DIR = Path("state_text")  # 前回テキスト保存用
 
 TIMEOUT = 30
-UA = "Mozilla/5.0 (compatible; url-watch/1.0)"
-DIFF_MAX_LINES = 20
+UA = "Mozilla/5.0 (compatible; url-watch/1.0; +https://github.com/)"
+DIFF_MAX_LINES = 20  # 最大20行（希望どおり）
 
 def load_urls():
-    return [
-        line.strip()
-        for line in URLS_FILE.read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.startswith("#")
-    ]
+    urls = []
+    for line in URLS_FILE.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        urls.append(line)
+    return urls
 
 def normalize_html_to_text(html: str) -> str:
     soup = BeautifulSoup(html, "lxml")
     for tag in soup(["script", "style", "noscript", "svg", "canvas"]):
         tag.decompose()
-    lines = [ln.strip() for ln in soup.get_text("\n").splitlines() if ln.strip()]
+
+    text = soup.get_text(separator="\n")
+    lines = [ln.strip() for ln in text.splitlines()]
+    lines = [ln for ln in lines if ln]
     return "\n".join(lines)
 
-def fetch(url: str):
+def fetch(url: str) -> str:
     r = requests.get(url, headers={"User-Agent": UA}, timeout=TIMEOUT)
     r.raise_for_status()
     r.encoding = r.apparent_encoding or "utf-8"
@@ -55,28 +60,39 @@ def save_state(state):
 
 def load_prev_text(url: str):
     p = STATE_TEXT_DIR / f"{url_key(url)}.txt"
-    return p.read_text(encoding="utf-8", errors="ignore") if p.exists() else None
+    if p.exists():
+        return p.read_text(encoding="utf-8", errors="ignore")
+    return None
 
 def save_curr_text(url: str, text: str):
     STATE_TEXT_DIR.mkdir(exist_ok=True)
-    (STATE_TEXT_DIR / f"{url_key(url)}.txt").write_text(text, encoding="utf-8")
+    p = STATE_TEXT_DIR / f"{url_key(url)}.txt"
+    p.write_text(text, encoding="utf-8")
 
-def make_diff(prev: str, curr: str):
-    diff = difflib.unified_diff(prev.splitlines(), curr.splitlines(), lineterm="")
-    lines = []
-    for ln in diff:
+def make_diff(prev_text: str, curr_text: str, max_lines: int = 20):
+    prev_lines = prev_text.splitlines()
+    curr_lines = curr_text.splitlines()
+
+    diff_iter = difflib.unified_diff(
+        prev_lines, curr_lines,
+        fromfile="before", tofile="after",
+        lineterm="", n=1
+    )
+
+    picked = []
+    for ln in diff_iter:
         if ln.startswith(("---", "+++", "@@")):
             continue
-        if ln.startswith(("+", "-")) and ln[1:].strip():
-            lines.append(ln)
-        if len(lines) >= DIFF_MAX_LINES:
+        if ln.startswith(("+", "-")):
+            if ln[1:].strip():
+                picked.append(ln)
+        if len(picked) >= max_lines:
             break
-    return lines
+    return picked
 
 def send_email(subject: str, body: str):
     smtp_host = os.environ["SMTP_HOST"]
-    # SMTP_PORT が未設定/空でも 587 を使う
-    smtp_port = int(os.environ.get("SMTP_PORT") or "587")
+    smtp_port = int(os.environ.get("SMTP_PORT") or "587")  # 空でも587
     smtp_user = os.environ["SMTP_USER"]
     smtp_pass = os.environ["SMTP_PASS"]
     mail_from = os.environ["MAIL_FROM"]
@@ -94,44 +110,63 @@ def send_email(subject: str, body: str):
         server.login(smtp_user, smtp_pass)
         server.sendmail(mail_from, [mail_to], msg.as_string())
 
-
 def main():
+    urls = load_urls()
     state = load_state()
-    reports = []
+
+    changed_reports = []
     errors = []
 
-    for url in load_urls():
+    for url in urls:
         try:
-            text = normalize_html_to_text(fetch(url))
-            h = sha256(text)
-            prev_h = state.get(url, {}).get("hash")
+            html = fetch(url)
+            curr_text = normalize_html_to_text(html)
+            curr_hash = sha256(curr_text)
+
+            prev_hash = state.get(url, {}).get("hash")
             prev_text = load_prev_text(url)
 
-            if prev_h and prev_h != h and prev_text:
-                reports.append((url, make_diff(prev_text, text)))
+            if prev_hash and prev_hash != curr_hash and prev_text is not None:
+                diff_lines = make_diff(prev_text, curr_text, DIFF_MAX_LINES)
+                changed_reports.append((url, diff_lines))
 
-            save_curr_text(url, text)
-            state[url] = {"hash": h}
-
+            save_curr_text(url, curr_text)
+            state[url] = {
+                "hash": curr_hash,
+                "last_checked": datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            }
         except Exception as e:
-            errors.append(f"{url} : {e}")
+            errors.append((url, str(e)))
 
     save_state(state)
 
-    if reports or errors:
-        body = []
-        for url, diff in reports:
-            body.append(f"【{url}】")
-            body.extend(diff or ["(差分が大きすぎます)"])
-            body.append("")
-        if errors:
-            body.append("■ エラー")
-            body.extend(errors)
+    # 変更 or エラーがあったときだけ通知
+    if changed_reports or errors:
+        today = datetime.date.today().isoformat()
+        subject = f"[URL更新検知] {today} 変更:{len(changed_reports)} エラー:{len(errors)}"
 
-        send_email(
-            f"[URL更新検知] {datetime.date.today()}",
-            "\n".join(body),
-        )
+        lines = []
+        if changed_reports:
+            lines.append("■ 更新が検知されたURL（差分 +追加 / -削除：最大20行）")
+            lines.append("")
+            for url, diff_lines in changed_reports:
+                lines.append(f"【{url}】")
+                if diff_lines:
+                    lines.extend(diff_lines)
+                else:
+                    lines.append("(差分が大きい/特殊で20行以内に収まりませんでした)")
+                lines.append("")
+
+        if errors:
+            lines.append("■ 取得エラー（サイト側ブロック/一時障害の可能性）")
+            for u, err in errors:
+                lines.append(f"- {u} : {err}")
+            lines.append("")
+
+        lines.append("（このメールは自動送信です）")
+        send_email(subject, "\n".join(lines))
+    else:
+        print("No changes, no errors.")
 
 if __name__ == "__main__":
     main()
