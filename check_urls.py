@@ -73,18 +73,27 @@ def make_diff(prev: str, curr: str):
             break
     return lines
 
-def send_email(subject, body):
+def send_email(subject: str, body: str):
+    smtp_host = os.environ["SMTP_HOST"]
+    # SMTP_PORT が未設定/空でも 587 を使う
+    smtp_port = int(os.environ.get("SMTP_PORT") or "587")
+    smtp_user = os.environ["SMTP_USER"]
+    smtp_pass = os.environ["SMTP_PASS"]
+    mail_from = os.environ["MAIL_FROM"]
+    mail_to = os.environ["MAIL_TO"]
+
     msg = MIMEText(body, "plain", "utf-8")
     msg["Subject"] = subject
-    msg["From"] = os.environ["MAIL_FROM"]
-    msg["To"] = os.environ["MAIL_TO"]
+    msg["From"] = mail_from
+    msg["To"] = mail_to
     msg["Date"] = formatdate(localtime=True)
 
-    with smtplib.SMTP(os.environ["SMTP_HOST"], int(os.environ.get("SMTP_PORT") or "587")) as s:
+    with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as server:
+        server.ehlo()
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.sendmail(mail_from, [mail_to], msg.as_string())
 
-        s.starttls()
-        s.login(os.environ["SMTP_USER"], os.environ["SMTP_PASS"])
-        s.send_message(msg)
 
 def main():
     state = load_state()
