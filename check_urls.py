@@ -4,6 +4,7 @@ import hashlib
 import smtplib
 import datetime
 import difflib
+import time
 from email.mime.text import MIMEText
 from email.utils import formatdate
 from pathlib import Path
@@ -15,7 +16,9 @@ URLS_FILE = Path("urls.txt")
 STATE_FILE = Path("state.json")
 STATE_TEXT_DIR = Path("state_text")  # 前回テキスト保存用
 
-TIMEOUT = 30
+# ★改善：タイムアウトを延長（中小企業庁サイトなどが混むと30秒では落ちがち）
+TIMEOUT = 60
+
 UA = "Mozilla/5.0 (compatible; url-watch/1.0; +https://github.com/)"
 DIFF_MAX_LINES = 20  # 最大20行（希望どおり）
 
@@ -38,11 +41,21 @@ def normalize_html_to_text(html: str) -> str:
     lines = [ln for ln in lines if ln]
     return "\n".join(lines)
 
+# ★改善：一時的な失敗に強くする（1回だけリトライ）
 def fetch(url: str) -> str:
-    r = requests.get(url, headers={"User-Agent": UA}, timeout=TIMEOUT)
-    r.raise_for_status()
-    r.encoding = r.apparent_encoding or "utf-8"
-    return r.text
+    last_err = None
+    for attempt in range(2):  # 合計2回（= 1回リトライ）
+        try:
+            r = requests.get(url, headers={"User-Agent": UA}, timeout=TIMEOUT)
+            r.raise_for_status()
+            r.encoding = r.apparent_encoding or "utf-8"
+            return r.text
+        except Exception as e:
+            last_err = e
+            if attempt == 0:
+                time.sleep(5)  # 5秒待って再試行
+            else:
+                raise last_err
 
 def sha256(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8", errors="ignore")).hexdigest()
@@ -83,9 +96,8 @@ def make_diff(prev_text: str, curr_text: str, max_lines: int = 20):
     for ln in diff_iter:
         if ln.startswith(("---", "+++", "@@")):
             continue
-        if ln.startswith(("+", "-")):
-            if ln[1:].strip():
-                picked.append(ln)
+        if ln.startswith(("+", "-")) and ln[1:].strip():
+            picked.append(ln)
         if len(picked) >= max_lines:
             break
     return picked
@@ -140,7 +152,7 @@ def main():
 
     save_state(state)
 
-    # 変更 or エラーがあったときだけ通知
+    # 更新 or 取得エラーがあったときだけ通知（現状仕様のまま）
     if changed_reports or errors:
         today = datetime.date.today().isoformat()
         subject = f"[URL更新検知] {today} 変更:{len(changed_reports)} エラー:{len(errors)}"
