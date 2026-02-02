@@ -1,6 +1,7 @@
-# 監視URL（行を追加/削除すれば増減できる）
-https://www.chusho.meti.go.jp/koukai/yosan/index.html
-https://www.chusho.meti.go.jp/pamflet/support.html
+# ===== 中小企業庁：公式RSS（安定・更新内容が分かりやすい） =====
+https://www.chusho.meti.go.jp/rss/index.xml
+
+# ===== 補助金・支援制度ポータル（HTML監視のまま） =====
 https://portal.monodukuri-hojo.jp/index.html
 https://shinjigyou-shinshutsu.smrj.go.jp/
 https://shoryokuka.smrj.go.jp/ippan/
