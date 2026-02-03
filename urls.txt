@@ -1,6 +1,3 @@
-# ===== 中小企業庁：公式RSS（安定・更新内容が分かりやすい） =====
-https://www.chusho.meti.go.jp/rss/index.xml
-
 # ===== 補助金・支援制度ポータル（HTML監視のまま） =====
 https://portal.monodukuri-hojo.jp/index.html
 https://shinjigyou-shinshutsu.smrj.go.jp/
