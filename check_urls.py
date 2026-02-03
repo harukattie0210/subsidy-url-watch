@@ -155,7 +155,7 @@ def main():
     # 更新 or 取得エラーがあったときだけ通知（現状仕様のまま）
     if changed_reports or errors:
         today = datetime.date.today().isoformat()
-        subject = f"[URL更新検知] {today} 変更:{len(changed_reports)} エラー:{len(errors)}"
+        subject = f"[補助金更新] {today} 変更:{len(changed_reports)} エラー:{len(errors)}"
 
         lines = []
         if changed_reports:
