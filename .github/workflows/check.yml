@@ -5,7 +5,7 @@ on:
     # 平日 朝9時（JST）
     # GitHub Actions は UTC 基準なので
     # 9:00 JST = 0:00 UTC
-    - cron: "0 0 * * 1-5"
+    - cron: "0 15 * * 1-5"
 
   # 手動実行もできるように残しておく
   workflow_dispatch:
