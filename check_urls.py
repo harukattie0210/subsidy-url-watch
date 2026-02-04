@@ -208,6 +208,7 @@ def main():
             lines.append("■ 更新が検知されたURL（差分 +追加 / -削除：最大20行）")
             lines.append("")
             for url, diff_lines in changed_reports:
+                # ★修正：必ずURLを表示する
                 lines.append(f"")
                 if diff_lines:
                     lines.extend(diff_lines)
