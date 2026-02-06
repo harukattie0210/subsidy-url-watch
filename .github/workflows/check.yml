@@ -5,8 +5,7 @@ on:
     # 平日 朝9時（JST）
     # GitHub Actions は UTC 基準なので
     # 9:00 JST = 0:00 UTC
-    - cron: "0 15 * * 1-5"
-
+    - cron: "0 0 * * 1-5"
   # 手動実行もできるように残しておく
   workflow_dispatch:
 
@@ -20,6 +19,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Show trigger (debug)
+        run: echo "EVENT=${{ github.event_name }}  REF=${{ github.ref }}  ACTOR=${{ github.actor }}  RUN_ID=${{ github.run_id }}"
 
       - name: Set up Python
         uses: actions/setup-python@v5
