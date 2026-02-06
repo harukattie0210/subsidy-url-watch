@@ -1,3 +1,26 @@
+# ===== debug header =====
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+
+print("=== DEBUG START ===")
+now_utc = datetime.now(timezone.utc)
+now_jst = now_utc.astimezone(timezone(timedelta(hours=9)))
+print("now_utc:", now_utc.isoformat())
+print("now_jst:", now_jst.isoformat())
+
+p = Path(__file__).with_name("urls.txt")
+print("urls.txt exists:", p.exists(), "path:", str(p))
+if p.exists():
+    lines = p.read_text(encoding="utf-8-sig").splitlines()
+    urls = [ln.strip() for ln in lines if ln.strip() and not ln.strip().startswith("#")]
+    print("loaded urls:", len(urls))
+    for u in urls:
+        print("URL:", u)
+else:
+    urls = []
+print("=== DEBUG END ===")
+# ===== /debug header =====
+
 import os
 import json
 import hashlib
