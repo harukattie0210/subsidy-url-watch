@@ -246,6 +246,7 @@ def main():
             lines.append("")
 
         lines.append("（このメールは自動送信です）")
+        print("=== EMAIL BODY ===\n" + "\n".join(lines) + "\n=== /EMAIL BODY ===")
         send_email(subject, "\n".join(lines))
     else:
         print("No changes, no errors.")
