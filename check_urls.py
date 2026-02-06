@@ -249,7 +249,7 @@ def main():
         print("=== EMAIL BODY ===\n" + "\n".join(lines) + "\n=== /EMAIL BODY ===")
         send_email(subject, "\n".join(lines))
     else:
-        print("No changes, no errors.")
+        send_email(subject + " (no change)", "変更はありませんでした。\n\n監視URL一覧:\n" + "\n".join(urls))
 
 
 if __name__ == "__main__":
